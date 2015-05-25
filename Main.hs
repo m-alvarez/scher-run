@@ -14,6 +14,7 @@ import Klee
 
 data Run = Verify String [String]
          | Help
+         | PrettyPrintReport FilePath
 
 defaultFlags =
   CF { tdir = Just "tdir"
@@ -60,12 +61,13 @@ parseFlags ((flag@('-':_)):rest) =
   (flag, flagArgs) : parseFlags restArgs
   where (flagArgs, restArgs) = break ((== '-') . head) rest
 
-parseArgs args = 
-  if "-help" `elem` args || null args
-    then Help
-    else Verify filename arguments
-      where filename = last args
-            arguments = [] `fromMaybe` lookup "-test" (parseFlags $ init args)
+parseArgs [] = Help
+parseArgs args | "-help" `elem` args = Help
+               | "-pp" `elem` args = PrettyPrintReport file
+               | otherwise = Verify filename arguments
+                   where Just [file] = lookup "-pp" (parseFlags args)
+                         filename = last args
+                         arguments = [] `fromMaybe` lookup "-test" (parseFlags $ init args)
 
 printHelp = do
   printf "Usage: scher-run [OPTIONS]... MODULE\n"
