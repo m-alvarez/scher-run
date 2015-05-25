@@ -106,4 +106,5 @@ compileC inputs output flags = do
     ExitSuccess -> do
       (exitCode, out, err) <- runLinker (map replaceExtension inputs) output
       report exitCode (show $ map replaceExtension inputs) out err
+      system "rm -rf *.o"
   return exitCode

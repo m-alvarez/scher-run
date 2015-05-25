@@ -49,7 +49,7 @@ verify moduleName tests = forM_ tests $ \testName -> do
   testFile <- writeTestFile moduleName testName 
   ExitSuccess <- compileHs testModuleFileName Nothing defaultFlags
   printf "Running test %s of module %s\n" testName moduleName
-  ExitSuccess <- compileC (cFiles $ gc defaultFlags) (Just "bytecode.o") defaultFlags
+  ExitSuccess <- compileC (cFiles $ gc defaultFlags) (Just "bytecode.bc") defaultFlags
   printf "Done compiling!\n"
 
 parseFlags [] = []
