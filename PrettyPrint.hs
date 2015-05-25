@@ -60,6 +60,7 @@ constructorRepr = undefined
 focusedRepr :: Objects ->  String
 focusedRepr [] = ""
 focusedRepr [(["IntVal"], str)] = show $ parseInt str
+focusedRepr [(["BoolVal"], str)] = show $ parseBool str
 focusedRepr attributes | isList attributes = listRepr attributes
                        | isTuple attributes = tupleRepr attributes
                        | otherwise = constructorRepr attributes
