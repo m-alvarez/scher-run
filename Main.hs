@@ -37,12 +37,12 @@ defaultFlags =
 cFiles gc =
        [ "tdir/main_code.c"
        , "tdir/lib/lib_cbits.c"
-       , "tdir/rts/stableptr.c"
        , "tdir/rts/rts_support.c"
        , "tdir/rts/profile.c"
        , "tdir/rts/jhc_rts.c"
-       , case gc of { Stub -> "tdir/rts/gc_jgc_stub.c"; JGC -> "tdir/rts/gc_jgc.c" }
-       ]
+       ] ++ case gc of
+              Stub -> [ "tdir/rts/gc_jgc_stub.c" ]
+              JGC ->  [ "tdir/rts/gc_jgc.c", "tdir/rts/stableptr.c" ]
 
 verify :: String -> [String] -> IO ()
 verify moduleName [] = printf "No test functions specified.\n"
