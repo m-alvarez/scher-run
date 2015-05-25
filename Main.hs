@@ -10,6 +10,7 @@ import Text.Printf
 
 import Program
 import Compiling
+import Klee
 
 data Run = Verify String [String]
          | Help
@@ -51,6 +52,8 @@ verify moduleName tests = forM_ tests $ \testName -> do
   printf "Running test %s of module %s\n" testName moduleName
   ExitSuccess <- compileC (cFiles $ gc defaultFlags) (Just "bytecode.bc") defaultFlags
   printf "Done compiling!\n"
+  ExitSuccess <- runKlee "bytecode.bc"
+  printf "Done verifying!\n"
 
 parseFlags [] = []
 parseFlags ((flag@('-':_)):rest) =

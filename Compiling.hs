@@ -57,7 +57,7 @@ compilerFlagsToC inputs output flags = snd $ runWriter $ do
   tell inputs
   
 
-runHaskellCompiler :: FilePath -> Maybe FilePath -> CompilerFlags->IO (ExitCode,String,String)
+runHaskellCompiler :: FilePath -> Maybe FilePath -> CompilerFlags -> IO (ExitCode,String,String)
 runHaskellCompiler input output flags = do
   printf "Command: %s %s\n" compiler (unwords haskellFlags)
   readProcessWithExitCode compiler haskellFlags ""
