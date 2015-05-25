@@ -43,11 +43,15 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   whenJust output (\filename -> tell ["-o", filename])
   tell [input]
 
+includeDirectives :: [String] -> [String]
+includeDirectives = map ("-I" ++)
+
 compilerFlagsToC :: [FilePath] -> Maybe FilePath -> CompilerFlags -> [String]
 compilerFlagsToC inputs output flags = snd $ runWriter $ do
   case gc flags of
     JGC -> tell ["-D_JHC_GC=_JHC_GC_JGC"]
     Stub -> tell ["-D_JHC_GC=_JHC_GC_JGC", "-D_JHC_GC_JGC_STUB"]
+  tell $ includeDirectives $ includes flags
   tell $ extraCFlags flags
   whenJust output (\filename -> tell ["-o", filename])
   tell inputs
