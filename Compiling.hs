@@ -5,6 +5,7 @@ import System.Process
 import System.Exit
 import Text.Printf
 import Data.List
+import Data.List.Split
 
 data GC = JGC | Stub
 
@@ -66,29 +67,39 @@ runCCompiler inputs output flags = do
     where compiler = cCompiler flags
           cFlags   = compilerFlagsToC inputs output flags
 
+report :: ExitCode -> String -> String -> String -> IO ExitCode
+report exitCode input out err = do
+  case exitCode of
+    ExitFailure i -> do
+      printf "Error compiling inputs %s\n" input
+      printf "Error code %d\n" i
+      printf "STDOUT:\n%s\n" out
+      printf "STDERR:\n%s\n" err
+    ExitSuccess ->
+      return ()
+  return exitCode
+
 compileHs :: FilePath -> Maybe FilePath -> CompilerFlags -> IO ExitCode
 compileHs input output flags = do
   (exitCode, out, err) <- runHaskellCompiler input output flags
-  case exitCode of
-    ExitFailure i -> do
-      printf "Error compiling file %s\n" input
-      printf "Error code %d\n" i
-      printf "STDOUT:\n%s\n" out
-      printf "STDERR:\n%s\n" err
-    ExitSuccess ->
-      return ()
-  return exitCode
+  report exitCode input out err
+
+runLinker files output =
+  readProcessWithExitCode "llvm-ld" (files ++ out) ""
+    where out = case output of
+                  Nothing -> []
+                  Just file -> ["-o", file]
+
+replaceExtension path = 
+  takeWhile (/= '.') (last $ splitOn "/" path) ++ ".o"
 
 compileC :: [FilePath] -> Maybe FilePath -> CompilerFlags -> IO ExitCode
 compileC inputs output flags = do
-  (exitCode, out, err) <- runCCompiler inputs output flags
+  (exitCode, out, err) <- runCCompiler inputs Nothing flags
+  report exitCode (show inputs) out err
   case exitCode of
-    ExitFailure i -> do
-      printf "Error compiling inputs %s\n" (show inputs)
-      printf "Error code %d\n" i
-      printf "STDOUT:\n%s\n" out
-      printf "STDERR:\n%s\n" err
-    ExitSuccess ->
-      return ()
+    ExitFailure _ -> return exitCode
+    ExitSuccess -> do
+      (exitCode, out, err) <- runLinker (map replaceExtension inputs) output
+      report exitCode (show $ map replaceExtension inputs) out err
   return exitCode
-
