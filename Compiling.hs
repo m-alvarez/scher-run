@@ -89,7 +89,7 @@ compileHs input output flags = do
   report exitCode input out err
 
 runLinker files output =
-  readProcessWithExitCode "llvm-ld" (files ++ out) ""
+  readProcessWithExitCode "llvm-ld" [unwords $ files ++ out] ""
     where out = case output of
                   Nothing -> []
                   Just file -> ["-o", file]
