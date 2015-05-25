@@ -1,4 +1,4 @@
-module Program (writeTestFile) where
+module Program where
 
 import Text.Printf
 import System.IO
@@ -11,10 +11,12 @@ testModuleFileName = (++ ".hs") testModuleName
 testFileContents :: String -> String -> String
 testFileContents moduleName testName = 
   concat [ printf "module %s(main) where\n" testModuleName
-         , printf "import %s\n" moduleName
-         , printf "main = %s\n" testName
+         , printf "import qualified %s as Test\n" moduleName
+         , printf "main = Test.%s\n" testName
          ]
 
+writeTestFile :: String -> String -> IO FilePath
 writeTestFile moduleName testName =
-  withFile testModuleFileName ReadMode $ \h -> 
+  withFile testModuleFileName WriteMode $ \h -> do
     hPutStr h $ testFileContents moduleName testName
+    return testModuleFileName

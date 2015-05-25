@@ -1,22 +1,57 @@
 module Main (main) where
 
 import System.Environment
+import System.Exit
+import Control.Monad
 import Data.List
 import Data.Functor
 import Data.Maybe
 import Text.Printf
 
 import Program
-import Compile
+import Compiling
 
 data Run = Verify String [String]
          | Help
 
+defaultFlags =
+  CF { tdir = Just "tdir"
+     , cCompiler = "llvm-gcc"
+     , haskellCompiler = "jhc"
+     , toC = True
+     , preprocessor = []
+     , includes = ["tdir/cbits", "tdir"]
+     , extraCFlags = [ "-std=gnu99"
+                     , "-falign-functions=4"
+                     , "-ffast-math"
+                     , "-fno-strict-aliasing"
+                     , "-DNDEBUG"
+                     , "-O3"
+                     , "-c"
+                     , "-emit-llvm" ]
+     , extraHaskellFlags = [ "-fffi"
+                           , "-fglobal-optimize"
+                           , "-fcpp" ]
+     , gc = Stub }
+
+cFiles gc =
+       [ "tdir/main_code.c"
+       , "tdir/lib/lib_cbits.c"
+       , "tdir/rts/stableptr.c"
+       , "tdir/rts/rts_support.c"
+       , "tdir/rts/profile.c"
+       , "tdir/rts/jhc_rts.c"
+       , case gc of { Stub -> "tdir/rts/gc_jgc_stub.c"; JGC -> "tdir/rts/gc_jgc.c" }
+       ]
+
 verify :: String -> [String] -> IO ()
 verify moduleName [] = printf "No test functions specified.\n"
-verify moduleName tests = sequence_ $ do
-  test <- tests
-  return $ printf "Running test %s of moduleName %s\n" test moduleName
+verify moduleName tests = forM_ tests $ \testName -> do
+  testFile <- writeTestFile moduleName testName 
+  ExitSuccess <- compileHs testModuleFileName Nothing defaultFlags
+  printf "Running test %s of module %s\n" testName moduleName
+  ExitSuccess <- compileC (cFiles $ gc defaultFlags) (Just "bytecode.o") defaultFlags
+  printf "Done compiling!\n"
 
 parseFlags [] = []
 parseFlags ((flag@('-':_)):rest) =
@@ -24,7 +59,7 @@ parseFlags ((flag@('-':_)):rest) =
   where (flagArgs, restArgs) = break ((== '-') . head) rest
 
 parseArgs args = 
-  if "-help" `elem` args
+  if "-help" `elem` args || null args
     then Help
     else Verify filename arguments
       where filename = last args
@@ -36,11 +71,10 @@ printHelp = do
   printf "\t-test NAME\tadds NAME to the list of test functions\n"
   printf "\t-help\t\tprints this message and exits\n"
 
-runProgram Help = printHelp
-runProgram (Verify filename testFunctions) = verify filename testFunctions
-
 main :: IO ()
 main = do
   invocation <- parseArgs <$> getArgs
-  runProgram invocation
+  case invocation of
+    Help -> printHelp
+    Verify moduleName testFunctions -> verify moduleName testFunctions
   
