@@ -89,10 +89,10 @@ compileHs input output flags = do
   report exitCode input out err
 
 runLinker files output =
-  readProcessWithExitCode "llvm-ld" [unwords $ files ++ out] ""
+  readProcessWithExitCode "llvm-ld" (files ++ out) ""
     where out = case output of
                   Nothing -> []
-                  Just file -> ["-o", file]
+                  Just file -> ["-o=" ++ file]
 
 replaceExtension path = 
   takeWhile (/= '.') (last $ splitOn "/" path) ++ ".o"
