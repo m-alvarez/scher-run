@@ -40,7 +40,7 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   whenJust (tdir flags) (\dir -> tell ["--tdir="++dir])
   tell $ preprocessorDirectives (preprocessor flags)
   when (toC flags) (tell ["-C"])
-  whenJust output (\filename -> tell ["-o", filename])
+  whenJust output (\filename -> tell ["--output=" ++ filename])
   tell [input]
 
 includeDirectives :: [String] -> [String]
@@ -53,7 +53,7 @@ compilerFlagsToC inputs output flags = snd $ runWriter $ do
     Stub -> tell ["-D_JHC_GC=_JHC_GC_JGC", "-D_JHC_GC_JGC_STUB"]
   tell $ includeDirectives $ includes flags
   tell $ extraCFlags flags
-  whenJust output (\filename -> tell ["-o", filename])
+  whenJust output (\filename -> tell ["-o " ++ filename])
   tell inputs
   
 

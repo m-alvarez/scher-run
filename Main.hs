@@ -20,13 +20,12 @@ defaultFlags =
      , haskellCompiler = "jhc"
      , toC = True
      , preprocessor = []
-     , includes = ["tdir/cbits", "tdir"]
+     , includes = ["tdir/cbits", "tdir", "/home/user/klee/include"]
      , extraCFlags = [ "-std=gnu99"
                      , "-falign-functions=4"
                      , "-ffast-math"
                      , "-fno-strict-aliasing"
                      , "-DNDEBUG"
-                     , "-O3"
                      , "-c"
                      , "-emit-llvm" ]
      , extraHaskellFlags = [ "-fffi"
@@ -77,4 +76,3 @@ main = do
   case invocation of
     Help -> printHelp
     Verify moduleName testFunctions -> verify moduleName testFunctions
-  
