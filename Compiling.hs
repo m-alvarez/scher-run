@@ -4,7 +4,6 @@ import Control.Monad.Writer
 import System.Process
 import System.Exit
 import Text.Printf
-import Data.List
 import Data.List.Split
 
 data GC = JGC | Stub
@@ -31,11 +30,15 @@ whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
 whenJust Nothing _ = return ()
 whenJust (Just a) f = f a
 
+fileToModuleName :: String -> String
+fileToModuleName = takeWhile (/= '.')
+
 compilerFlagsToHaskell :: FilePath -> Maybe FilePath -> CompilerFlags -> [String]
 compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   case gc flags of
     JGC -> return ()
     Stub -> tell ["-fjgc-stub"]
+  tell ["--main=" ++ fileToModuleName input]
   tell $ extraHaskellFlags flags
   whenJust (tdir flags) (\dir -> tell ["--tdir="++dir])
   tell $ preprocessorDirectives (preprocessor flags)
@@ -55,9 +58,8 @@ compilerFlagsToC inputs output flags = snd $ runWriter $ do
   tell $ extraCFlags flags
   whenJust output (\filename -> tell ["-o " ++ filename])
   tell inputs
-  
 
-runHaskellCompiler :: FilePath -> Maybe FilePath -> CompilerFlags -> IO (ExitCode,String,String)
+runHaskellCompiler :: FilePath -> Maybe FilePath -> CompilerFlags -> IO(ExitCode,String,String)
 runHaskellCompiler input output flags = do
   printf "Command: %s %s\n" compiler (unwords haskellFlags)
   readProcessWithExitCode compiler haskellFlags ""
@@ -88,23 +90,25 @@ compileHs input output flags = do
   (exitCode, out, err) <- runHaskellCompiler input output flags
   report exitCode input out err
 
+runLinker :: [FilePath] -> Maybe FilePath -> IO (ExitCode, String, String)
 runLinker files output =
   readProcessWithExitCode "llvm-link" (files ++ out) ""
     where out = case output of
                   Nothing -> []
                   Just file -> ["-o=" ++ file]
 
+replaceExtension :: String -> String
 replaceExtension path = 
   takeWhile (/= '.') (last $ splitOn "/" path) ++ ".o"
 
 compileC :: [FilePath] -> Maybe FilePath -> CompilerFlags -> IO ExitCode
 compileC inputs output flags = do
   (exitCode, out, err) <- runCCompiler inputs Nothing flags
-  report exitCode (show inputs) out err
+  _ <- report exitCode (show inputs) out err
   case exitCode of
     ExitFailure _ -> return exitCode
     ExitSuccess -> do
-      (exitCode, out, err) <- runLinker (map replaceExtension inputs) output
-      report exitCode (show $ map replaceExtension inputs) out err
-      system "rm -rf *.o"
-  return exitCode
+      (exitCode', out', err') <- runLinker (map replaceExtension inputs) output
+      _ <- report exitCode' (show $ map replaceExtension inputs) out' err'
+      _ <- system "rm -rf *.o"
+      return exitCode'
