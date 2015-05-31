@@ -7,6 +7,7 @@ import Control.Monad.Writer
 
 data KleeFlags = KF
                { libc :: Maybe String
+               , emitAllErrors :: Bool
                }
 
 whenJust :: (Monad m) => Maybe a -> (a -> m ()) -> m ()
@@ -16,6 +17,7 @@ whenJust (Just a) f = f a
 toFlags :: FilePath -> KleeFlags -> [String]
 toFlags input flags = snd $ runWriter $ do
   whenJust (libc flags) $ \c -> tell ["--libc=" ++ c]
+  when (emitAllErrors flags) (tell ["--emit-all-errors"])
   tell [input]
 
 report :: ExitCode -> String -> String -> String -> IO ExitCode

@@ -16,7 +16,8 @@ data Run = Verify String [String]
          | Help
          | PrettyPrintReport FilePath
 
-defaultFlags =
+defaultCompilerFlags :: CompilerFlags
+defaultCompilerFlags =
   CF { tdir = Just "tdir"
      , cCompiler = "llvm-gcc"
      , haskellCompiler = "jhc"
@@ -35,32 +36,44 @@ defaultFlags =
                            , "-fcpp" ]
      , gc = Stub }
 
-cFiles gc =
+defaultKleeFlags :: KleeFlags
+defaultKleeFlags =
+  KF { libc = Just "uclibc"
+     , emitAllErrors = True
+     }
+
+cFiles :: GC -> [FilePath]
+cFiles garbageCollector =
        [ "tdir/main_code.c"
        , "tdir/lib/lib_cbits.c"
        , "tdir/rts/rts_support.c"
        , "tdir/rts/profile.c"
        , "tdir/rts/jhc_rts.c"
-       ] ++ case gc of
+       ] ++ case garbageCollector of
               Stub -> [ "tdir/rts/gc_jgc_stub.c" ]
               JGC ->  [ "tdir/rts/gc_jgc.c", "tdir/rts/stableptr.c" ]
 
 verify :: String -> [String] -> IO ()
-verify moduleName [] = printf "No test functions specified.\n"
+verify _ [] = printf "No test functions specified.\n"
 verify moduleName tests = forM_ tests $ \testName -> do
   testFile <- writeTestFile moduleName testName 
-  ExitSuccess <- compileHs testModuleFileName Nothing defaultFlags
+  ExitSuccess <- compileHs testFile Nothing defaultCompilerFlags
   printf "Running test %s of module %s\n" testName moduleName
-  ExitSuccess <- compileC (cFiles $ gc defaultFlags) (Just "bytecode.bc") defaultFlags
+  ExitSuccess <- compileC (cFiles $ gc defaultCompilerFlags) 
+                          (Just "bytecode.bc") 
+                          defaultCompilerFlags
   printf "Done compiling!\n"
-  ExitSuccess <- runKlee "bytecode.bc"
+  ExitSuccess <- runKlee defaultKleeFlags "bytecode.bc"
   printf "Done verifying!\n"
 
+parseFlags :: [String] -> [(String, [String])]
 parseFlags [] = []
 parseFlags ((flag@('-':_)):rest) =
   (flag, flagArgs) : parseFlags restArgs
   where (flagArgs, restArgs) = break ((== '-') . head) rest
+parseFlags args = error ("Unrecognized flags when parsing " ++ concat args)
 
+parseArgs :: [String] -> Run
 parseArgs [] = Help
 parseArgs args | "-help" `elem` args = Help
                | "-pp" `elem` args = PrettyPrintReport file
@@ -69,6 +82,7 @@ parseArgs args | "-help" `elem` args = Help
                          filename = last args
                          arguments = [] `fromMaybe` lookup "-test" (parseFlags $ init args)
 
+printHelp :: IO ()
 printHelp = do
   printf "Usage: scher-run [OPTIONS]... MODULE\n"
   printf "Options:\n"
@@ -81,3 +95,4 @@ main = do
   case invocation of
     Help -> printHelp
     Verify moduleName testFunctions -> verify moduleName testFunctions
+    PrettyPrintReport _ -> printf "Not implemented yet\n"
