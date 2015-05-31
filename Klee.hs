@@ -17,7 +17,7 @@ whenJust (Just a) f = f a
 toFlags :: FilePath -> KleeFlags -> [String]
 toFlags input flags = snd $ runWriter $ do
   whenJust (libc flags) $ \c -> tell ["--libc=" ++ c]
-  when (emitAllErrors flags) (tell ["--emit-all-errors"])
+  when (emitAllErrors flags) (tell ["-emit-all-errors"])
   tell [input]
 
 report :: ExitCode -> String -> String -> String -> IO ExitCode
