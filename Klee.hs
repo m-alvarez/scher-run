@@ -32,9 +32,9 @@ exhaustive = (==) <$> completedPaths <*> generatedPaths
 
 instance Show KleeReport where
   show r = snd $ runWriter $ do
-    tell $ printf "Number of completed paths: \t%s\n" (completedPaths r)
-    tell $ printf "Number of generated paths: \t%s\n" (generatedPaths r)
-    tell $ printf "Number of explored paths: \t%s\n" (exploredPaths r)
+    tell $ printf "Number of completed paths: \t%d\n" (completedPaths r)
+    tell $ printf "Number of generated paths: \t%d\n" (generatedPaths r)
+    tell $ printf "Number of explored paths: \t%d\n" (exploredPaths r)
     tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
     tell $ printf "\n"
     tell $ printf "Test cases: \t%s\n" (intercalate "," $ testCases r)
