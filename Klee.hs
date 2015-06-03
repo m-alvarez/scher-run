@@ -7,8 +7,8 @@ import System.Directory
 import System.FilePath
 import Text.Printf
 import Control.Monad.Writer
+import Control.Applicative
 import Data.Maybe
-import Data.Functor
 import Data.List
 import Data.List.Split
 
@@ -27,11 +27,16 @@ data KleeReport = KleeReport
                 , statistics     :: Maybe KleeStats
                 }
 
+exhaustive :: KleeReport -> Bool
+exhaustive = (==) <$> completedPaths <*> generatedPaths
+
 instance Show KleeReport where
   show r = snd $ runWriter $ do
     tell $ printf "Number of completed paths: \t%s\n" (completedPaths r)
     tell $ printf "Number of generated paths: \t%s\n" (generatedPaths r)
     tell $ printf "Number of explored paths: \t%s\n" (exploredPaths r)
+    tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
+    tell $ printf "\n"
     tell $ printf "Test cases: \t%s\n" (intercalate "," $ testCases r)
     tell $ printf "Errors: \t%s\n" (intercalate "," $ errors r)
     tell $ printf "Support for performance statistics not yet available\n"
