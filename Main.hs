@@ -37,10 +37,11 @@ defaultCompilerFlags =
      , gc = Stub }
 
 defaultKleeFlags :: KleeFlags
-defaultKleeFlags =
-  KF { libc = Just "uclibc"
-     , emitAllErrors = True
-     }
+defaultKleeFlags = KleeFlags
+                 { libc = Just "uclibc"
+                 , emitAllErrors = True
+                 , outputDirectory = Just "klee-output"
+                 } 
 
 cFiles :: GC -> [FilePath]
 cFiles garbageCollector =
@@ -63,8 +64,9 @@ verify moduleName tests = forM_ tests $ \testName -> do
                           (Just "bytecode.bc") 
                           defaultCompilerFlags
   printf "Done compiling!\n"
-  ExitSuccess <- runKlee defaultKleeFlags "bytecode.bc"
+  kleeReport <- runKlee defaultKleeFlags "bytecode.bc"
   printf "Done verifying!\n"
+  putStr $ show kleeReport
 
 parseFlags :: [String] -> [(String, [String])]
 parseFlags [] = []
