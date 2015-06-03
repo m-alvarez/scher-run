@@ -64,7 +64,7 @@ verify moduleName tests = forM_ tests $ \testName -> do
                           (Just "bytecode.bc") 
                           defaultCompilerFlags
   printf "Done compiling!\n"
-  kleeReport <- runKlee defaultKleeFlags "bytecode.bc"
+  Just kleeReport <- runKlee defaultKleeFlags "bytecode.bc"
   printf "Done verifying!\n"
   putStr $ show kleeReport
 
