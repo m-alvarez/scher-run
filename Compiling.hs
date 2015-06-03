@@ -8,8 +8,11 @@ import Data.List.Split
 
 data GC = JGC | Stub
 
+data TDir = NoTDir | TDirAt FilePath | TDirRandom
+
 data CompilerFlags = CF
-                   { tdir :: Maybe String
+                   { tdir :: TDir
+                   , entryPoint :: Maybe String
                    , cCompiler :: String
                    , extraCFlags :: [String]
                    , includes :: [String]
@@ -38,9 +41,13 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   case gc flags of
     JGC -> return ()
     Stub -> tell ["-fjgc-stub"]
-  tell ["--main=" ++ fileToModuleName input]
+  whenJust (entryPoint flags) $ \main -> 
+    tell ["--main=" ++ fileToModuleName input ++ "." ++ main]
   tell $ extraHaskellFlags flags
-  whenJust (tdir flags) (\dir -> tell ["--tdir="++dir])
+  case tdir flags of
+    NoTDir -> return ()
+    TDirAt dir -> tell ["--tdir=" ++ dir]
+    TDirRandom -> return () -- TODO this has to go
   tell $ preprocessorDirectives (preprocessor flags)
   when (toC flags) (tell ["-C"])
   whenJust output (\filename -> tell ["--output=" ++ filename])

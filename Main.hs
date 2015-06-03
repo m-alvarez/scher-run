@@ -3,7 +3,6 @@ module Main (main) where
 import System.Environment
 import System.Exit
 import Control.Monad
-import Data.List
 import Data.Functor
 import Data.Maybe
 import Text.Printf
@@ -18,7 +17,8 @@ data Run = Verify String [String]
 
 defaultCompilerFlags :: CompilerFlags
 defaultCompilerFlags =
-  CF { tdir = Just "tdir"
+  CF { tdir = TDirRandom
+     , entryPoint = Just "main"
      , cCompiler = "llvm-gcc"
      , haskellCompiler = "jhc"
      , toC = True

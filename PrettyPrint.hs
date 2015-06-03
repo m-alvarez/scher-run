@@ -25,7 +25,7 @@ names = map (head . fst)
 focus :: Name -> Objects -> Objects
 focus name list =
   map (first tail) $
-  filter (\(path, s) -> head path == name)
+  filter (\(path, _) -> head path == name)
   list
 
 isList :: Objects -> Bool
