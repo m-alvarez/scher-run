@@ -20,21 +20,21 @@ data KleeFlags = KleeFlags
 
 data KleeReport = KleeReport
                 { completedPaths :: Integer
-                , generatedPaths :: Integer
                 , exploredPaths  :: Integer
+                , generatedTests :: Integer
                 , testCases      :: [ FilePath ]
                 , errors         :: [ FilePath ]
                 , statistics     :: Maybe KleeStats
                 }
 
 exhaustive :: KleeReport -> Bool
-exhaustive = (==) <$> completedPaths <*> generatedPaths
+exhaustive = (==) <$> completedPaths <*> exploredPaths
 
 instance Show KleeReport where
   show r = snd $ runWriter $ do
     tell $ printf "Number of completed paths: \t%d\n" (completedPaths r)
-    tell $ printf "Number of generated paths: \t%d\n" (generatedPaths r)
     tell $ printf "Number of explored paths: \t%d\n" (exploredPaths r)
+    tell $ printf "Number of generated tests: \t%d\n" (generatedTests r)
     tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
     tell $ printf "\n"
     tell $ printf "Test cases: \t%s\n" (intercalate "," $ testCases r)
@@ -94,9 +94,10 @@ readKleeInfoFile path = do
                 <$> filter ((== prefix) . take (length prefix)) 
                 <$> lines 
                 <$> readFile (path </> "info")
+  print attributes
   return ( read $ fromJust $ lookup "explored paths" attributes
          , read $ fromJust $ lookup "completed paths" attributes
-         , read $ fromJust $ lookup "generated paths" attributes
+         , read $ fromJust $ lookup "generated tests" attributes
          )
     where prefix = "KLEE: done: "
 
@@ -107,10 +108,10 @@ readKleeResults path = do
   let testCases = filter ((== ".ktest") . snd . splitExtension) kleeResults
   let errors = filter ((== ".err") . snd . splitExtension) kleeResults
   let statistics = Nothing
-  (exploredPaths, completedPaths, generatedPaths) <- readKleeInfoFile path
+  (exploredPaths, completedPaths, generatedTests) <- readKleeInfoFile path
   return KleeReport { testCases
                     , errors
-                    , generatedPaths
+                    , generatedTests
                     , completedPaths
                     , exploredPaths
                     , statistics }
