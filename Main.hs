@@ -17,7 +17,7 @@ data Run = Verify String [String]
 
 defaultCompilerFlags :: CompilerFlags
 defaultCompilerFlags =
-  CF { tdir = TDirRandom
+  CF { tdir = TDirAt "tdir"
      , entryPoint = Just "main"
      , cCompiler = "llvm-gcc"
      , haskellCompiler = "jhc"
