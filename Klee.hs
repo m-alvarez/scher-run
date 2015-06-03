@@ -90,7 +90,7 @@ readKleeInfoFile :: FilePath -> IO (Integer, Integer, Integer)
 readKleeInfoFile path = do
   attributes <- map (\ [a, b] -> (a, b))
                 <$> map (splitOn " = ")
-                <$> drop (length prefix)
+                <$> map (drop (length prefix))
                 <$> filter ((== prefix) . take (length prefix)) 
                 <$> lines 
                 <$> readFile (path </> "info")
