@@ -37,8 +37,8 @@ instance Show KleeReport where
     tell $ printf "Number of generated tests: \t%d\n" (generatedTests r)
     tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
     tell $ printf "\n"
-    tell $ printf "Test cases: \t%s\n" (intercalate "," $ testCases r)
-    tell $ printf "Errors: \t%s\n" (intercalate "," $ errors r)
+    tell $ printf "Test cases: \t%s\n" (intercalate ", " $ testCases r)
+    tell $ printf "Errors: \t%s\n" (intercalate ", " $ errors r)
     tell $ printf "Support for performance statistics not yet available\n"
     return ()
 
