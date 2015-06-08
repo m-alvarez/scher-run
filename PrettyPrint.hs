@@ -1,10 +1,11 @@
 module PrettyPrint where
 
+import Data.Char
 import Data.List
 import Data.List.Split
 import Data.Maybe
 import Control.Arrow
-import Data.Functor
+import Control.Applicative
 
 type Objects = [(Path, String)]
 
@@ -15,6 +16,7 @@ type Name = String
 parseInt :: String -> Int
 parseInt ('\\':'x':str) = 
   sum $ zipWith (*) (map read $ splitOn "\\x" str) (map (256 ^ ) [0 ..])
+parseInt _ = error "Incorrect format for integer"
 
 parseBool :: String -> Bool
 parseBool = (/= 0) <$> parseInt
@@ -34,28 +36,40 @@ isList = isJust <$> lookup ["IsCons"]
 listSegments :: Objects -> [String]
 listSegments attributes = 
   case parseBool <$> lookup ["IsCons"] attributes of
-    Just True -> repr "car" attributes : listSegments (focus "cdr" attributes)
+    Just True  -> repr "car" attributes : listSegments (focus "cdr" attributes)
     Just False -> []
+    Nothing    -> error "Could not find IsCons in list"
 
 listRepr :: Objects -> String
 listRepr attributes = "[" ++ intercalate ", " (listSegments attributes) ++ "]"
 
 isTuple :: Objects -> Bool
-isTuple = isJust <$> lookup ["TupleArity"]
+isTuple = (&&) <$> (isJust <$> lookup ["1"]) <*> (not <$> isConstructor) 
+
+isConstructor :: Objects -> Bool
+isConstructor = isJust <$> lookup ["Constructor"]
 
 tupleSegments :: Int -> Objects -> [String]
 tupleSegments num attributes = 
-  map (focusedRepr . flip focus attributes . ("Tuple"++) . show) [1 .. num]
+  map (focusedRepr . flip focus attributes . show) [1 .. num]
 
 tupleRepr :: Objects -> String
 tupleRepr attributes = 
-  "(" ++ intercalate ", " (tupleSegments length attributes) ++ ")"
-  where length = parseInt $ fromJust $ lookup ["TupleArity"] attributes
+  "(" ++ intercalate ", " (tupleSegments len attributes) ++ ")"
+  where len = parseInt $ fromJust $ lookup ["TupleArity"] attributes
 
 repr :: Name -> Objects -> String
 repr name objects = focusedRepr $ focus name objects
 
-constructorRepr = undefined
+constructorFields :: Objects -> [String]
+constructorFields objects = 
+  focusedRepr <$> flip focus objects <$> filter (isDigit . head) (names objects)
+
+constructorRepr :: Objects -> String
+constructorRepr objects =
+  case names $ focus "Constructor" objects of
+    [constructor] -> "(" ++ constructor ++ intercalate ", " (constructorFields objects) ++ ")"
+    _ -> error "Could not find constructor name"
   
 focusedRepr :: Objects ->  String
 focusedRepr [] = ""
