@@ -72,9 +72,10 @@ constructorRepr objects =
     _ -> error "Could not find constructor name"
   
 focusedRepr :: Objects ->  String
-focusedRepr [] = ""
+focusedRepr [] = error "Empty object map"
 focusedRepr [(["IntVal"], str)] = show $ parseInt str
 focusedRepr [(["BoolVal"], str)] = show $ parseBool str
 focusedRepr attributes | isList attributes = listRepr attributes
                        | isTuple attributes = tupleRepr attributes
-                       | otherwise = constructorRepr attributes
+                       | isConstructor attributes = constructorRepr attributes
+                       | otherwise = error "Could not determine the representation"
