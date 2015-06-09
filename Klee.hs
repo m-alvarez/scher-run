@@ -74,17 +74,20 @@ toFlags input flags = snd $ runWriter $ do
   when (emitAllErrors flags) (tell ["-emit-all-errors"])
   tell [input]
 
-report :: ExitCode -> String -> String -> String -> IO ExitCode
-report exitCode input out err = do
-  case exitCode of
-    ExitFailure i -> do
-      printf "Error verifying file %s\n" input
-      printf "Error code %d\n" i
-      printf "STDOUT:\n%s\n" out
-      printf "STDERR:\n%s\n" err
-    ExitSuccess ->
-      return ()
-  return exitCode
+reportKleeFailure :: Int -> String -> String -> String -> IO ()
+reportKleeFailure errno input out err = do
+  printf "Error verifying file %s\n" input
+  printf "Error code %d\n" errno
+  printf "STDOUT:\n%s\n" out
+  printf "STDERR:\n%s\n" err
+
+reportKTestToolFailure :: Int -> String -> String -> String -> IO ()
+reportKTestToolFailure errno input out err = do
+  printf "Error reading report %s\n" input
+  printf "Error code %d\n" errno
+  printf "STDOUT:\n%s\n" out
+  printf "STDERR:\n%s\n" err
+  
 
 readKleeInfoFile :: FilePath -> IO (Integer, Integer, Integer)
 readKleeInfoFile path = do
@@ -100,7 +103,6 @@ readKleeInfoFile path = do
          , read $ fromJust $ lookup "generated tests" attributes
          )
     where prefix = "KLEE: done: "
-
 
 readKleeResults :: FilePath -> IO KleeReport
 readKleeResults path = do
@@ -121,8 +123,19 @@ runKlee :: KleeFlags -> FilePath -> IO (Maybe KleeReport)
 runKlee flags filename = do
   printf "Command: %s %s\n" "klee" (unwords kleeFlags)
   (exitCode, out, err) <- readProcessWithExitCode "klee" kleeFlags ""
-  _ <- report exitCode filename out err
   case exitCode of
-    ExitFailure _ -> return Nothing
+    ExitFailure errno -> do
+      reportKleeFailure errno filename out err
+      return Nothing
     ExitSuccess -> Just <$> readKleeResults ("klee-last" `fromMaybe` outputDirectory flags)
-    where kleeFlags = toFlags filename flags
+  where kleeFlags = toFlags filename flags
+
+runKTestTool :: FilePath -> IO (Maybe [String])
+runKTestTool filename = do
+  (exitCode, out, err) <- readProcessWithExitCode "ktest-tool" ["--write-ints"] filename
+  case exitCode of
+    ExitFailure errno -> do
+      reportKTestToolFailure errno filename out err
+      return Nothing
+    ExitSuccess ->
+      return $ Just (lines out)

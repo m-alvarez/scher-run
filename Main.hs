@@ -91,10 +91,13 @@ printHelp = do
   printf "\t-test NAME\tadds NAME to the list of test functions\n"
   printf "\t-help\t\tprints this message and exits\n"
 
+prettyPrintFromFile :: FilePath -> IO ()
+prettyPrintFromFile filename 
+
 main :: IO ()
 main = do
   invocation <- parseArgs <$> getArgs
   case invocation of
     Help -> printHelp
     Verify moduleName testFunctions -> verify moduleName testFunctions
-    PrettyPrintReport _ -> printf "Not implemented yet\n"
+    PrettyPrintReport filename -> prettyPrintFromFile filename

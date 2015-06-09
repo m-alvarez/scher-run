@@ -94,3 +94,15 @@ focusedRepr attributes | isList attributes = listRepr attributes
                        | isTuple attributes = tupleRepr attributes
                        | isConstructor attributes = constructorRepr attributes
                        | otherwise = error "Could not determine the representation"
+
+fromRawLines :: [String] -> Objects
+fromRawLines = map fromRawLine <$> chunksOf packet <$> drop header
+  where header = 3
+        packet = 3
+
+fromRawLine :: [String] -> (Path, String)
+fromRawLine [name, _, content] = (path, element)
+  where path = splitOn "%" $ quoted name
+        element = quoted content
+        quoted = takeWhile (/= '\'') <$> tail <$> dropWhile (/= '\'')
+fromRawLine _ = error "Fatal error: wrong invocation of internal fromRawLine"
