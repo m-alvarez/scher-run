@@ -92,11 +92,11 @@ printHelp = do
   printf "Options:\n"
   printf "\t-test NAME\tadds NAME to the list of test functions\n"
   printf "\t-help\t\tprints this message and exits\n"
+  printf "\t-pp FILE\t\tpretty-prints the contents of the error report in FILE"
 
 prettyPrintFromFile :: FilePath -> IO ()
 prettyPrintFromFile filename = do
-  fh <- openFile filename ReadMode
-  raw <- lines <$> hGetContents fh
+  Just raw<- runKTestTool filename
   let objects = PP.fromRawLines raw
   let names = PP.names objects
   forM_ names $ \name -> do

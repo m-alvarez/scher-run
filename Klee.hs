@@ -118,7 +118,6 @@ readKleeResults path = do
                     , exploredPaths
                     , statistics }
   
-
 runKlee :: KleeFlags -> FilePath -> IO (Maybe KleeReport)
 runKlee flags filename = do
   printf "Command: %s %s\n" "klee" (unwords kleeFlags)
