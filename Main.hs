@@ -2,6 +2,7 @@ module Main (main) where
 
 import System.Environment
 import System.Exit
+import System.IO
 import Control.Monad
 import Data.Functor
 import Data.Maybe
@@ -10,6 +11,7 @@ import Text.Printf
 import Program
 import Compiling
 import Klee
+import qualified PrettyPrint as PP
 
 data Run = Verify String [String]
          | Help
@@ -92,7 +94,14 @@ printHelp = do
   printf "\t-help\t\tprints this message and exits\n"
 
 prettyPrintFromFile :: FilePath -> IO ()
-prettyPrintFromFile filename 
+prettyPrintFromFile filename = do
+  fh <- openFile filename ReadMode
+  raw <- lines <$> hGetContents fh
+  let objects = PP.fromRawLines raw
+  let names = PP.names objects
+  forM_ names $ \name -> do
+    let repr = PP.repr name objects
+    printf "%s\t%s" name (show repr)
 
 main :: IO ()
 main = do
