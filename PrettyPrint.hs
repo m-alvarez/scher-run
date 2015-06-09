@@ -7,6 +7,21 @@ import Data.Maybe
 import Control.Arrow
 import Control.Applicative
 
+data Entity = Int Int
+            | Bool Bool
+            | Maybe (Maybe Entity)
+            | Tuple [Entity]
+            | List [Entity]
+            | Constructor String [Entity]
+
+instance Show Entity where
+  show (Int i)           = show i
+  show (Bool b)          = show b
+  show (Maybe m)         = show m
+  show (Tuple t)         = "(" ++ intercalate ", " (map show t) ++ ")"
+  show (List l)          = "[" ++ intercalate ", " (map show l) ++ "]"
+  show (Constructor n f) = "(" ++ n ++ " " ++ intercalate " " (map show f) ++ ")"
+
 type Objects = [(Path, String)]
 
 type Path = [Name]
@@ -33,48 +48,48 @@ focus name list =
 isList :: Objects -> Bool
 isList = isJust <$> lookup ["IsCons"]
 
-listSegments :: Objects -> [String]
+listSegments :: Objects -> [Entity]
 listSegments attributes = 
   case parseBool <$> lookup ["IsCons"] attributes of
     Just True  -> repr "car" attributes : listSegments (focus "cdr" attributes)
     Just False -> []
     Nothing    -> error "Could not find IsCons in list"
 
-listRepr :: Objects -> String
-listRepr attributes = "[" ++ intercalate ", " (listSegments attributes) ++ "]"
+listRepr :: Objects -> Entity
+listRepr = List . listSegments
 
 isTuple :: Objects -> Bool
 isTuple = (&&) <$> (isJust <$> lookup ["1"]) <*> (not <$> isConstructor) 
 
 isConstructor :: Objects -> Bool
-isConstructor = isJust <$> lookup ["Constructor"]
+isConstructor = (not . null) <$> names <$> focus "Constructor"
 
-tupleSegments :: Int -> Objects -> [String]
+tupleSegments :: Int -> Objects -> [Entity]
 tupleSegments num attributes = 
   map (focusedRepr . flip focus attributes . show) [1 .. num]
 
-tupleRepr :: Objects -> String
+tupleRepr :: Objects -> Entity
 tupleRepr attributes = 
-  "(" ++ intercalate ", " (tupleSegments len attributes) ++ ")"
+  Tuple $ tupleSegments len attributes
   where len = parseInt $ fromJust $ lookup ["TupleArity"] attributes
 
-repr :: Name -> Objects -> String
+repr :: Name -> Objects -> Entity
 repr name objects = focusedRepr $ focus name objects
 
-constructorFields :: Objects -> [String]
+constructorFields :: Objects -> [Entity]
 constructorFields objects = 
   focusedRepr <$> flip focus objects <$> filter (isDigit . head) (names objects)
 
-constructorRepr :: Objects -> String
+constructorRepr :: Objects -> Entity
 constructorRepr objects =
   case names $ focus "Constructor" objects of
-    [constructor] -> "(" ++ constructor ++ intercalate ", " (constructorFields objects) ++ ")"
+    [constructor] -> Constructor constructor $ constructorFields objects
     _ -> error "Could not find constructor name"
   
-focusedRepr :: Objects ->  String
+focusedRepr :: Objects ->  Entity
 focusedRepr [] = error "Empty object map"
-focusedRepr [(["IntVal"], str)] = show $ parseInt str
-focusedRepr [(["BoolVal"], str)] = show $ parseBool str
+focusedRepr [(["IntVal"], str)] = Int $ parseInt str
+focusedRepr [(["BoolVal"], str)] = Bool $ parseBool str
 focusedRepr attributes | isList attributes = listRepr attributes
                        | isTuple attributes = tupleRepr attributes
                        | isConstructor attributes = constructorRepr attributes
