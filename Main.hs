@@ -96,12 +96,12 @@ printHelp = do
 
 prettyPrintFromFile :: FilePath -> IO ()
 prettyPrintFromFile filename = do
-  Just raw<- runKTestTool filename
+  Just raw <- runKTestTool filename
   let objects = PP.fromRawLines raw
   let names = PP.names objects
   forM_ names $ \name -> do
     let repr = PP.repr name objects
-    printf "%s\t%s" name (show repr)
+    printf "%s:\t%s\n" name (show repr)
 
 main :: IO ()
 main = do
