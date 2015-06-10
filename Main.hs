@@ -56,6 +56,25 @@ cFiles garbageCollector =
               Stub -> [ "tdir/rts/gc_jgc_stub.c" ]
               JGC ->  [ "tdir/rts/gc_jgc.c", "tdir/rts/stableptr.c" ]
 
+showReport :: KleeReport -> IO ()
+showReport r = do
+  printf "%s\n" $ show r
+  when (not $ null $ errors r) (printTestCases >> loop)
+  where loop = do
+          printf "Enter test case number: "
+          i <- getLine
+          case reads i of
+            [(n, _)] -> do
+              let filename = errors r !! n
+              prettyPrintFromFile filename
+            _ -> printf "Invalid number\n"
+          loop
+        printTestCases = do
+          printf "Test cases:\n"
+          forM_ (zip [1..] $ errors r) $ \(i, err) -> do
+            printf "Report %d: %s\n" (i :: Int) err
+
+
 verify :: String -> [String] -> IO ()
 verify _ [] = printf "No test functions specified.\n"
 verify moduleName tests = forM_ tests $ \testName -> do
@@ -68,7 +87,7 @@ verify moduleName tests = forM_ tests $ \testName -> do
   printf "Done compiling!\n"
   Just kleeReport <- runKlee defaultKleeFlags "bytecode.bc"
   printf "Done verifying!\n"
-  putStr $ show kleeReport
+  showReport kleeReport
 
 parseFlags :: [String] -> [(String, [String])]
 parseFlags [] = []
