@@ -59,7 +59,7 @@ cFiles garbageCollector =
 showReport :: KleeReport -> IO ()
 showReport r = do
   printf "%s\n" $ show r
-  when (not $ null $ errors r) (printTestCases >> loop)
+  when (not $ null $ testCases r) (printTestCases >> loop)
   where loop = do
           printf "Enter test case number: "
           i <- getLine
