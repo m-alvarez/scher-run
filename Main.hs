@@ -65,13 +65,13 @@ showReport r = do
           i <- getLine
           case reads i of
             [(n, _)] -> do
-              let filename = errors r !! n
+              let filename = testCases r !! (n - 1)
               prettyPrintFromFile filename
             _ -> printf "Invalid number\n"
           loop
         printTestCases = do
           printf "Test cases:\n"
-          forM_ (zip [1..] $ errors r) $ \(i, err) -> do
+          forM_ (zip [1..] $ testCases r) $ \(i, err) -> do
             printf "Report %d: %s\n" (i :: Int) err
 
 
@@ -124,6 +124,7 @@ prettyPrintFromFile filename = do
 
 main :: IO ()
 main = do
+  hSetBuffering stdout NoBuffering
   invocation <- parseArgs <$> getArgs
   case invocation of
     Help -> printHelp
