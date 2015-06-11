@@ -119,7 +119,9 @@ readKleeResults path = do
   
 runKlee :: KleeFlags -> FilePath -> IO (Maybe KleeReport)
 runKlee flags filename = do
-  whenJust (outputDirectory flags) removeDirectoryRecursive
+  whenJust (outputDirectory flags) $ \dir -> do
+    exists <- doesDirectoryExist dir
+    when exists $ removeDirectoryRecursive dir
   printf "Command: %s %s\n" "klee" (unwords kleeFlags)
   (exitCode, out, err) <- readProcessWithExitCode "klee" kleeFlags ""
   case exitCode of
