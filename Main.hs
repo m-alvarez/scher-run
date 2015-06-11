@@ -1,31 +1,50 @@
+{-# LANGUAGE LambdaCase #-}
 module Main (main) where
 
 import System.Environment
 import System.Exit
 import System.IO
 import Control.Monad
+import Control.Monad.State
+import Control.Arrow
 import Data.Functor
 import Data.Maybe
+import Data.List
+import Data.List.Split
 import Text.Printf
 
 import Program
 import Compiling
-import Klee
+import Klee hiding (whenJust)
 import qualified PrettyPrint as PP
 
-data Run = Verify String [String]
+data Run = Verify VerificationOptions [String]
          | Help
-         | PrettyPrintReport FilePath
+         | PrettyPrint [FilePath]
+
+data VerificationOptions =
+  VO { testModuleName     :: String
+     , evaluationStrategy :: Strategy
+     , kleeFlags          :: KleeFlags
+     , compilerFlags      :: CompilerFlags
+     }
+
+defaultVerificationOptions =
+  VO { testModuleName     = "TestModule"
+     , evaluationStrategy = Eager
+     , kleeFlags          = defaultKleeFlags
+     , compilerFlags      = defaultCompilerFlags
+     }
 
 defaultCompilerFlags :: CompilerFlags
 defaultCompilerFlags =
-  CF { tdir = TDirAt "tdir"
-     , entryPoint = Just "main"
-     , cCompiler = "llvm-gcc"
+  CF { tdir            = TDirAt "tdir"
+     , entryPoint      = Just "main"
+     , cCompiler       = "llvm-gcc"
      , haskellCompiler = "jhc"
-     , toC = True
-     , preprocessor = []
-     , includes = ["tdir/cbits", "tdir", "/home/user/klee/include"]
+     , toC             = True
+     , preprocessor    = []
+     , includes        = ["tdir/cbits", "tdir", "/home/user/klee/include"]
      , extraCFlags = [ "-std=gnu99"
                      , "-falign-functions=4"
                      , "-ffast-math"
@@ -36,12 +55,13 @@ defaultCompilerFlags =
      , extraHaskellFlags = [ "-fffi"
                            , "-fglobal-optimize"
                            , "-fcpp" ]
-     , gc = Stub }
+     , gc = Stub
+     }
 
 defaultKleeFlags :: KleeFlags
 defaultKleeFlags = KleeFlags
-                 { libc = Just "uclibc"
-                 , emitAllErrors = True
+                 { libc            = Just "uclibc"
+                 , emitAllErrors   = False
                  , outputDirectory = Just "klee-output"
                  } 
 
@@ -74,13 +94,20 @@ showReport r = do
           forM_ (zip [1..] $ testCases r) $ \(i, err) -> do
             printf "Report %d: %s\n" (i :: Int) err
 
+functionModule :: String -> String
+functionModule = intercalate "." <$> init <$> splitOn "."
 
-verify :: String -> [String] -> IO ()
+functionName :: String -> String
+functionName = last <$> splitOn "."
+
+verify :: VerificationOptions -> [String] -> IO ()
 verify _ [] = printf "No test functions specified.\n"
-verify moduleName tests = forM_ tests $ \testName -> do
-  testFile <- writeTestFile moduleName testName 
+verify opts tests = forM_ tests $ \test -> do
+  let m = functionModule test
+  let f = functionName test
+  testFile <- writeTestFile (testModuleName opts) (evaluationStrategy opts) m f
   ExitSuccess <- compileHs testFile Nothing defaultCompilerFlags
-  printf "Running test %s of module %s\n" testName moduleName
+  printf "Running test function %s of module %s\n" f m
   ExitSuccess <- compileC (cFiles $ gc defaultCompilerFlags) 
                           (Just "bytecode.bc") 
                           defaultCompilerFlags
@@ -89,29 +116,38 @@ verify moduleName tests = forM_ tests $ \testName -> do
   printf "Done verifying!\n"
   showReport kleeReport
 
-parseFlags :: [String] -> [(String, [String])]
-parseFlags [] = []
-parseFlags ((flag@('-':_)):rest) =
-  (flag, flagArgs) : parseFlags restArgs
-  where (flagArgs, restArgs) = break ((== '-') . head) rest
-parseFlags args = error ("Unrecognized flags when parsing " ++ concat args)
-
+parseFlags :: [String] -> ([String], ([String], [(String, String)]))
+parseFlags [] = ([], ([], []))
+parseFlags ((flag@('-':_)):(value@(c:_)):rest)
+  | c /= '-'  = id *** id *** ((flag, value):) $ parseFlags rest
+  | otherwise = id *** (flag:) *** id $ parseFlags rest
+parseFlags (value:rest) = 
+  (value:) *** id *** id $ parseFlags rest
+  
 parseArgs :: [String] -> Run
-parseArgs [] = Help
-parseArgs args | "-help" `elem` args = Help
-               | "-pp" `elem` args = PrettyPrintReport file
-               | otherwise = Verify filename arguments
-                   where Just [file] = lookup "-pp" (parseFlags args)
-                         filename = last args
-                         arguments = [] `fromMaybe` lookup "-test" (parseFlags $ init args)
+parseArgs ("verify":rest)  = Verify options functions
+  where (functions, (flags, args)) = parseFlags rest
+        options = flip execState defaultVerificationOptions $ do
+          whenJust (lookup "-strategy" args) $ \strat ->
+            let s = case strat of
+                      "eager" -> Eager
+                      "lazy"  -> Lazy
+                      _       -> error (printf "No such strategy %s" strat)
+            in
+            modify $ \o -> o { evaluationStrategy = s }
+          when ("-emit-all-errors" `elem` flags) $ do
+            modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
+parseArgs ("pp":files)         = PrettyPrint files
+parseArgs ("help":_)           = Help
+parseArgs _                    = Help
 
 printHelp :: IO ()
 printHelp = do
-  printf "Usage: scher-run [OPTIONS]... MODULE\n"
-  printf "Options:\n"
-  printf "\t-test NAME\tadds NAME to the list of test functions\n"
-  printf "\t-help\t\tprints this message and exits\n"
-  printf "\t-pp FILE\t\tpretty-prints the contents of the error report in FILE"
+  printf "Usage: scher-run COMMAND\n"
+  printf "Where command is one of\n"
+  printf "\tverify [FUNCTION]...\n"
+  printf "\tpp [FILE]...\n"
+  printf "\thelp\n"
 
 prettyPrintFromFile :: FilePath -> IO ()
 prettyPrintFromFile filename = do
@@ -128,5 +164,5 @@ main = do
   invocation <- parseArgs <$> getArgs
   case invocation of
     Help -> printHelp
-    Verify moduleName testFunctions -> verify moduleName testFunctions
-    PrettyPrintReport filename -> prettyPrintFromFile filename
+    Verify options testFunctions -> verify options testFunctions
+    PrettyPrint filenames -> forM_ filenames prettyPrintFromFile

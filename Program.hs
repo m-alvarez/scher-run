@@ -2,21 +2,30 @@ module Program where
 
 import Text.Printf
 import System.IO
+import System.FilePath
+import Data.Functor
+import Data.List.Split
 
-testModuleName :: String
-testModuleName = "TestModule"
+data Strategy = Eager | Lazy
 
-testModuleFileName = (++ ".hs") testModuleName
+instance Show Strategy where
+  show Eager = "Eager"
+  show Lazy = "Lazy"
 
-testFileContents :: String -> String -> String
-testFileContents moduleName testName = 
+testFileContents :: String -> Strategy -> String -> String -> String
+testFileContents testModuleName strategy moduleName testName = 
   concat [ printf "module %s(main) where\n" testModuleName
          , printf "import qualified %s as Test\n" moduleName
-         , printf "main = Test.%s\n" testName
+         , printf "import Test.Scher\n"
+         , printf "main = runSym Test.%s %s\n" testName (show strategy)
          ]
 
-writeTestFile :: String -> String -> IO FilePath
-writeTestFile moduleName testName =
-  withFile testModuleFileName WriteMode $ \h -> do
-    hPutStr h $ testFileContents moduleName testName
-    return testModuleFileName
+moduleToFileName :: String -> FilePath
+moduleToFileName = (<.> "hs") <$> foldl (</>) "" <$> splitOn "."
+
+writeTestFile :: String -> Strategy -> String -> String -> IO FilePath
+writeTestFile testModuleName strategy moduleName testName = do
+  let filename = moduleToFileName testModuleName
+  withFile filename WriteMode $ \h -> do
+    hPutStr h $ testFileContents testModuleName strategy moduleName testName
+    return filename

@@ -97,7 +97,6 @@ readKleeInfoFile path = do
                 <$> filter ((== prefix) . take (length prefix)) 
                 <$> lines 
                 <$> readFile (path </> "info")
-  print attributes
   return ( read $ fromJust $ lookup "explored paths" attributes
          , read $ fromJust $ lookup "completed paths" attributes
          , read $ fromJust $ lookup "generated tests" attributes
@@ -120,6 +119,7 @@ readKleeResults path = do
   
 runKlee :: KleeFlags -> FilePath -> IO (Maybe KleeReport)
 runKlee flags filename = do
+  whenJust (outputDirectory flags) removeDirectoryRecursive
   printf "Command: %s %s\n" "klee" (unwords kleeFlags)
   (exitCode, out, err) <- readProcessWithExitCode "klee" kleeFlags ""
   case exitCode of
