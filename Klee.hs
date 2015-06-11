@@ -16,6 +16,7 @@ data KleeFlags = KleeFlags
                { libc            :: Maybe String
                , emitAllErrors   :: Bool
                , outputDirectory :: Maybe FilePath
+               , maxTime         :: Maybe Int
                }
 
 data KleeReport = KleeReport

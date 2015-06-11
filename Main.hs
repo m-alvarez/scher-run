@@ -63,6 +63,7 @@ defaultKleeFlags = KleeFlags
                  { libc            = Just "uclibc"
                  , emitAllErrors   = False
                  , outputDirectory = Just "klee-output"
+                 , maxTime         = Nothing
                  } 
 
 cFiles :: GC -> [FilePath]
@@ -137,6 +138,8 @@ parseArgs ("verify":rest)  = Verify options functions
             modify $ \o -> o { evaluationStrategy = s }
           when ("-emit-all-errors" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
+          whenJust (lookup "-max-time" args) $ \time ->
+            modify $ \o -> o { kleeFlags = (kleeFlags o) { maxTime = Just time } }
 parseArgs ("pp":files)         = PrettyPrint files
 parseArgs ("help":_)           = Help
 parseArgs _                    = Help
@@ -145,7 +148,11 @@ printHelp :: IO ()
 printHelp = do
   printf "Usage: scher-run COMMAND\n"
   printf "Where command is one of\n"
-  printf "\tverify [FUNCTION]...\n"
+  printf "\tverify [FUNCTION]... [FLAGS]...\n"
+  printf "\t\tAvailable flags:\n"
+  printf "\t\t\t-strategy (eager|lazy)\n"
+  printf "\t\t\t-emit-all-errors\n"
+  printf "\t\t\t-max-time TIME\n"
   printf "\tpp [FILE]...\n"
   printf "\thelp\n"
 
