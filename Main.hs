@@ -139,7 +139,7 @@ parseArgs ("verify":rest)  = Verify options functions
           when ("-emit-all-errors" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
           whenJust (lookup "-max-time" args) $ \time ->
-            modify $ \o -> o { kleeFlags = (kleeFlags o) { maxTime = Just time } }
+            modify $ \o -> o { kleeFlags = (kleeFlags o) { maxTime = Just $ read time } }
 parseArgs ("pp":files)         = PrettyPrint files
 parseArgs ("help":_)           = Help
 parseArgs _                    = Help
