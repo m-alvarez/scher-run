@@ -36,7 +36,7 @@ instance Show KleeReport where
     tell $ printf "Number of completed paths: \t%d\n" (completedPaths r)
     tell $ printf "Number of explored paths: \t%d\n" (exploredPaths r)
     tell $ printf "Number of generated tests: \t%d\n" (generatedTests r)
-    tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
+    --tell $ printf "The test is \t%s\n" $ if exhaustive r then "EXHAUSTIVE" else "NONEXHAUSTIVE"
     tell $ printf "\n"
     tell $ printf "Test cases: \t%s\n" (intercalate ", " $ testCases r)
     tell $ printf "Errors: \t%s\n" (intercalate ", " $ errors r)

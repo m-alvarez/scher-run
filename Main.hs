@@ -113,7 +113,7 @@ verify opts tests = forM_ tests $ \test -> do
                           (Just "bytecode.bc") 
                           defaultCompilerFlags
   printf "Done compiling!\n"
-  Just kleeReport <- runKlee defaultKleeFlags "bytecode.bc"
+  Just kleeReport <- runKlee (kleeFlags opts) "bytecode.bc"
   printf "Done verifying!\n"
   showReport kleeReport
 
