@@ -11,20 +11,22 @@ data GC = JGC | Stub
 data TDir = NoTDir | TDirAt FilePath
 
 data CompilerFlags = CF
-                   { tdir :: TDir
-                   , entryPoint :: Maybe String
-                   , cCompiler :: String
-                   , extraCFlags :: [String]
-                   , includes :: [String]
-                   , haskellCompiler :: String
+                   { tdir              :: TDir
+                   , entryPoint        :: Maybe String
+                   , cCompiler         :: String
+                   , extraCFlags       :: [String]
+                   , includes          :: [String]
+                   , hsCompiler        :: String
                    , extraHaskellFlags :: [String]
-                   , toC :: Bool
-                   , preprocessor :: [(String, Maybe String)]
-                   , gc :: GC }
+                   , toC               :: Bool
+                   , cPreprocessor     :: [(PreprocessorFlag, Maybe String)]
+                   , hsPreprocessor    :: Maybe [(PreprocessorFlag, Maybe String)]
+                   , gc                :: GC }
 
+type PreprocessorFlag = String
 
-preprocessorDirectives :: [(String, Maybe String)] -> [String]
-preprocessorDirectives =
+preprocessorFlags :: [(PreprocessorFlag, Maybe String)] -> [String]
+preprocessorFlags =
   map $ \pair ->
     case pair of
       (flag, Nothing) -> "-D"++flag
@@ -42,16 +44,25 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   case gc flags of
     JGC -> return ()
     Stub -> tell ["-fjgc-stub"]
+
   whenJust (entryPoint flags) $ \main -> 
     tell ["--main=" ++ fileToModuleName input ++ "." ++ main]
+
+  whenJust (hsPreprocessor flags) $ \ppFlags -> do
+    tell ["-fcpp"]
+    tell $ preprocessorFlags ppFlags
+
   tell $ extraHaskellFlags flags
+
   case tdir flags of
     NoTDir -> return ()
     TDirAt dir -> tell ["--tdir=" ++ dir]
-    --TDirRandom -> return () -- TODO this has to go
-  tell $ preprocessorDirectives (preprocessor flags)
+    --TDirRandom -> return () -- TODO implement this at some point
+
   when (toC flags) (tell ["-C"])
+
   whenJust output (\filename -> tell ["--output=" ++ filename])
+
   tell [input]
 
 includeDirectives :: [String] -> [String]
@@ -59,19 +70,26 @@ includeDirectives = map ("-I" ++)
 
 compilerFlagsToC :: [FilePath] -> Maybe FilePath -> CompilerFlags -> [String]
 compilerFlagsToC inputs output flags = snd $ runWriter $ do
+
   case gc flags of
     JGC -> tell ["-D_JHC_GC=_JHC_GC_JGC"]
     Stub -> tell ["-D_JHC_GC=_JHC_GC_JGC", "-D_JHC_GC_JGC_STUB"]
+
   tell $ includeDirectives $ includes flags
+
   tell $ extraCFlags flags
+
+  tell $ preprocessorFlags $ cPreprocessor flags
+
   whenJust output (\filename -> tell ["-o " ++ filename])
+
   tell inputs
 
 runHaskellCompiler :: FilePath -> Maybe FilePath -> CompilerFlags -> IO(ExitCode,String,String)
 runHaskellCompiler input output flags = do
   printf "Command: %s %s\n" compiler (unwords haskellFlags)
   readProcessWithExitCode compiler haskellFlags ""
-    where compiler     = haskellCompiler flags
+    where compiler     = hsCompiler flags
           haskellFlags = compilerFlagsToHaskell input output flags
 
 runCCompiler :: [FilePath] -> Maybe FilePath -> CompilerFlags -> IO (ExitCode, String, String)

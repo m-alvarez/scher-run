@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Main (main) where
 
 import System.Environment
@@ -24,27 +25,26 @@ data Run = Verify VerificationOptions [String]
 
 data VerificationOptions =
   VO { testModuleName     :: String
-     , evaluationStrategy :: Strategy
      , kleeFlags          :: KleeFlags
      , compilerFlags      :: CompilerFlags
      }
 
 defaultVerificationOptions =
   VO { testModuleName     = "TestModule"
-     , evaluationStrategy = Eager
      , kleeFlags          = defaultKleeFlags
      , compilerFlags      = defaultCompilerFlags
      }
 
 defaultCompilerFlags :: CompilerFlags
 defaultCompilerFlags =
-  CF { tdir            = TDirAt "tdir"
-     , entryPoint      = Just "main"
-     , cCompiler       = "llvm-gcc"
-     , haskellCompiler = "jhc"
-     , toC             = True
-     , preprocessor    = []
-     , includes        = ["tdir/cbits", "tdir", "/home/user/klee/include"]
+  CF { tdir           = TDirAt "tdir"
+     , entryPoint     = Just "main"
+     , cCompiler      = "llvm-gcc"
+     , hsCompiler     = "jhc"
+     , toC            = True
+     , cPreprocessor  = []
+     , hsPreprocessor = Nothing
+     , includes       = ["tdir/cbits", "tdir", "/home/user/klee/include"]
      , extraCFlags = [ "-std=gnu99"
                      , "-falign-functions=4"
                      , "-ffast-math"
@@ -54,7 +54,8 @@ defaultCompilerFlags =
                      , "-emit-llvm" ]
      , extraHaskellFlags = [ "-fffi"
                            , "-fglobal-optimize"
-                           , "-fcpp" ]
+                           , "--ignore-cache"
+                           ]
      , gc = Stub
      }
 
@@ -106,12 +107,12 @@ verify _ [] = printf "No test functions specified.\n"
 verify opts tests = forM_ tests $ \test -> do
   let m = functionModule test
   let f = functionName test
-  testFile <- writeTestFile (testModuleName opts) (evaluationStrategy opts) m f
-  ExitSuccess <- compileHs testFile Nothing defaultCompilerFlags
+  testFile <- writeTestFile (testModuleName opts) (Function m f)
+  ExitSuccess <- compileHs testFile Nothing (compilerFlags opts)
   printf "Running test function %s of module %s\n" f m
   ExitSuccess <- compileC (cFiles $ gc defaultCompilerFlags) 
                           (Just "bytecode.bc") 
-                          defaultCompilerFlags
+                          (compilerFlags opts)
   printf "Done compiling!\n"
   Just kleeReport <- runKlee (kleeFlags opts) "bytecode.bc"
   printf "Done verifying!\n"
@@ -129,20 +130,21 @@ parseArgs :: [String] -> Run
 parseArgs ("verify":rest)  = Verify options functions
   where (functions, (flags, args)) = parseFlags rest
         options = flip execState defaultVerificationOptions $ do
-          whenJust (lookup "-strategy" args) $ \strat ->
-            let s = case strat of
-                      "eager" -> Eager
-                      "lazy"  -> Lazy
-                      _       -> error (printf "No such strategy %s" strat)
-            in
-            modify $ \o -> o { evaluationStrategy = s }
+          let hsPreprocessor = Just $ case lookup "-strategy" args of
+                Just "eager"-> [("KLEE_IMPURE", Nothing)]
+                Nothing     -> [("KLEE_IMPURE", Nothing)]
+                Just "lazy" -> [("KLEE_PURE", Nothing)]
+                Just strat  -> error $ printf "Invalid strategy %s" strat
+          modify $ \o -> o { compilerFlags = (compilerFlags o) { hsPreprocessor } }
+
           when ("-emit-all-errors" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
+
           whenJust (lookup "-max-time" args) $ \time ->
             modify $ \o -> o { kleeFlags = (kleeFlags o) { maxTime = Just $ read time } }
-parseArgs ("pp":files)         = PrettyPrint files
-parseArgs ("help":_)           = Help
-parseArgs _                    = Help
+parseArgs ("pp":files) = PrettyPrint files
+parseArgs ("help":_)   = Help
+parseArgs _            = Help
 
 printHelp :: IO ()
 printHelp = do
