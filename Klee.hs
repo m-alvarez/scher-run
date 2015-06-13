@@ -108,8 +108,8 @@ readKleeInfoFile path = do
 readKleeResults :: FilePath -> IO KleeReport
 readKleeResults path = do
   kleeResults <- getDirectoryContents path
-  let testCases  = (path </>) <$> filter ((== ".ktest") . snd . splitExtension) kleeResults
-  let errors     = (path </>) <$> filter ((== ".err") . snd . splitExtension) kleeResults
+  let testCases  = sort $ (path </>) <$> filter ((== ".ktest") . snd . splitExtension) kleeResults
+  let errors     = sort $ (path </>) <$> filter ((== ".err") . snd . splitExtension) kleeResults
   let statistics = Nothing
   (exploredPaths, completedPaths, generatedTests) <- readKleeInfoFile path
   return KleeReport { testCases
