@@ -19,6 +19,9 @@ extras = unlines [
   "  intmax_t i;",
   "  klee_make_symbolic(&i, sizeof(intmax_t), name);",
   "  return i;",
+  "}",
+  "uint16_t c_ptr_eql(wptr_t p1, wptr_t p2) {",
+  "  return p1 == p2;",
   "}"
   ] `at` "extras.h"
   
