@@ -15,6 +15,7 @@ import Data.List.Split
 data KleeFlags = KleeFlags
                { libc            :: Maybe String
                , emitAllErrors   :: Bool
+               , posixRuntime    :: Bool
                , outputDirectory :: Maybe FilePath
                , maxTime         :: Maybe Int
                }
@@ -70,10 +71,11 @@ whenJust (Just a) f = f a
 
 toFlags :: FilePath -> KleeFlags -> [String]
 toFlags input flags = snd $ runWriter $ do
-  whenJust (libc flags) $ \c -> tell ["-libc=" ++ c]
+  whenJust (libc flags)            $ \c -> tell ["-libc=" ++ c]
   whenJust (outputDirectory flags) $ \d -> tell ["-output-dir=" ++ d]
-  when (emitAllErrors flags) (tell ["-emit-all-errors"])
-  whenJust (maxTime flags) $ \i -> tell ["-max-time=" ++ show i]
+  when (posixRuntime flags)        $ tell ["--posix-runtime"]
+  when (emitAllErrors flags)       $ tell ["-emit-all-errors"]
+  whenJust (maxTime flags)         $ \i -> tell ["-max-time=" ++ show i]
   tell [input]
 
 reportKleeFailure :: Int -> String -> String -> String -> IO ()
