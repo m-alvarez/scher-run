@@ -20,7 +20,7 @@ testFileContents testModuleName function =
 moduleToFileName :: Module -> FilePath
 moduleToFileName = (<.> "hs") <$> foldl (</>) "" <$> splitOn "."
 
-writeTestFile :: String -> Function -> IO FilePath
+writeTestFile :: FilePath -> Function -> IO FilePath
 writeTestFile testModuleName function = do
   let filename = moduleToFileName testModuleName
   withFile filename WriteMode $ \h -> do
