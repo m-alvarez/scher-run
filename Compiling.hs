@@ -17,6 +17,7 @@ data CompilerFlags = CF
                    , extraCFlags       :: [String]
                    , includes          :: [String]
                    , hsCompiler        :: String
+                   , ignoreCache       :: Bool
                    , extraHaskellFlags :: [String]
                    , toC               :: Bool
                    , cPreprocessor     :: [(PreprocessorFlag, Maybe String)]
@@ -51,6 +52,8 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   whenJust (hsPreprocessor flags) $ \ppFlags -> do
     tell ["-fcpp"]
     tell $ preprocessorFlags ppFlags
+
+  when (ignoreCache flags) $ tell ["--ignore-cache"]
 
   tell $ extraHaskellFlags flags
 

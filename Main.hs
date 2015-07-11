@@ -13,11 +13,13 @@ import Data.Maybe
 import Data.List
 import Data.List.Split
 import Text.Printf
+import System.TimeIt
 
 import Program
 import Compiling
 import Klee hiding (whenJust)
 import qualified PrettyPrint as PP
+import ExtraCFiles
 
 data Run = Verify VerificationOptions [String]
          | Help
@@ -27,12 +29,14 @@ data VerificationOptions =
   VO { testModuleName     :: String
      , kleeFlags          :: KleeFlags
      , compilerFlags      :: CompilerFlags
+     , benchmarkFile      :: Maybe FilePath
      }
 
 defaultVerificationOptions =
   VO { testModuleName     = "TestModule"
      , kleeFlags          = defaultKleeFlags
      , compilerFlags      = defaultCompilerFlags
+     , benchmarkFile      = Nothing
      }
 
 defaultCompilerFlags :: CompilerFlags
@@ -45,6 +49,7 @@ defaultCompilerFlags =
      , cPreprocessor  = []
      , hsPreprocessor = Nothing
      , includes       = ["tdir/cbits", "tdir", "/home/user/klee/include"]
+     , ignoreCache    = False
      , extraCFlags = [ "-std=gnu99"
                      , "-falign-functions=4"
                      , "-ffast-math"
@@ -54,7 +59,6 @@ defaultCompilerFlags =
                      , "-emit-llvm" ]
      , extraHaskellFlags = [ "-fffi"
                            , "-fglobal-optimize"
-                           , "--ignore-cache"
                            ]
      , gc = Stub
      }
@@ -62,6 +66,7 @@ defaultCompilerFlags =
 defaultKleeFlags :: KleeFlags
 defaultKleeFlags = KleeFlags
                  { libc            = Just "uclibc"
+                 , posixRuntime    = True
                  , emitAllErrors   = False
                  , outputDirectory = Just "klee-output"
                  , maxTime         = Nothing
@@ -102,21 +107,35 @@ functionModule = intercalate "." <$> init <$> splitOn "."
 functionName :: String -> String
 functionName = last <$> splitOn "."
 
+writeBenchmarks :: FilePath -> Double -> Double -> Double -> IO ()
+writeBenchmarks filename hsCompileTime cCompileTime kleeTime =
+  withFile filename WriteMode $ \h -> do
+    hPrintf h "Haskell compiler time: %lf\n" hsCompileTime
+    hPrintf h "C compiler time: %lf\n" cCompileTime
+    hPrintf h "Klee run time: %lf\n" kleeTime
+
 verify :: VerificationOptions -> [String] -> IO ()
 verify _ [] = printf "No test functions specified.\n"
 verify opts tests = forM_ tests $ \test -> do
   let m = functionModule test
   let f = functionName test
   testFile <- writeTestFile (testModuleName opts) (Function m f)
-  ExitSuccess <- compileHs testFile Nothing (compilerFlags opts)
+  (hsCompileTime, ExitSuccess) <- timeItT $ compileHs testFile Nothing (compilerFlags opts)
+  case tdir defaultCompilerFlags of
+    NoTDir      -> return ()
+    TDirAt tdir -> writeExtraCFiles tdir
   printf "Running test function %s of module %s\n" f m
-  ExitSuccess <- compileC (cFiles $ gc defaultCompilerFlags) 
-                          (Just "bytecode.bc") 
-                          (compilerFlags opts)
+  (cCompileTime, ExitSuccess) <- timeItT $ compileC (cFiles $ gc defaultCompilerFlags) 
+                                                    (Just "bytecode.bc") 
+                                                    (compilerFlags opts)
   printf "Done compiling!\n"
-  Just kleeReport <- runKlee (kleeFlags opts) "bytecode.bc"
+  (kleeTime, Just kleeReport) <- timeItT $ runKlee (kleeFlags opts) "bytecode.bc"
   printf "Done verifying!\n"
   showReport kleeReport
+  case benchmarkFile opts of
+    Just file -> writeBenchmarks file hsCompileTime cCompileTime kleeTime
+    Nothing -> return ()
+
 
 parseFlags :: [String] -> ([String], ([String], [(String, String)]))
 parseFlags [] = ([], ([], []))
@@ -130,6 +149,7 @@ parseArgs :: [String] -> Run
 parseArgs ("verify":rest)  = Verify options functions
   where (functions, (flags, args)) = parseFlags rest
         options = flip execState defaultVerificationOptions $ do
+
           let hsPreprocessor = Just $ case lookup "-strategy" args of
                 Just "eager"-> [("KLEE_IMPURE", Nothing)]
                 Nothing     -> [("KLEE_IMPURE", Nothing)]
@@ -137,11 +157,17 @@ parseArgs ("verify":rest)  = Verify options functions
                 Just strat  -> error $ printf "Invalid strategy %s" strat
           modify $ \o -> o { compilerFlags = (compilerFlags o) { hsPreprocessor } }
 
+          when ("-ignore-cache" `elem` flags) $ do
+            modify $ \o -> o { compilerFlags = (compilerFlags o) { ignoreCache = True } }
+
           when ("-emit-all-errors" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
 
           whenJust (lookup "-max-time" args) $ \time ->
             modify $ \o -> o { kleeFlags = (kleeFlags o) { maxTime = Just $ read time } }
+
+          whenJust (lookup "-benchmarkFile" args) $ \file ->
+            modify $ \o -> o { benchmarkFile = Just file }
 parseArgs ("pp":files) = PrettyPrint files
 parseArgs ("help":_)   = Help
 parseArgs _            = Help
@@ -164,8 +190,7 @@ prettyPrintFromFile filename = do
   let objects = PP.fromRawLines raw
   let names = PP.names objects
   forM_ names $ \name -> do
-    let repr = PP.repr name objects
-    printf "%s:\t%s\n" name (show repr)
+    printf "%s:\t%s\n" name (show $ PP.repr name objects)
 
 main :: IO ()
 main = do
