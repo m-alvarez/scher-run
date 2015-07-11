@@ -13,15 +13,19 @@ data Entity = Int Int
             | Bool Bool
             | Char Char
             | Maybe (Maybe Entity)
+            | Ratio Entity Entity
             | Tuple [Entity]
             | List [Entity]
             | Constructor String [Entity]
+            | Unknown
 
 instance Show Entity where
+  show Unknown           = "UNKNOWN"
   show (Int i)           = show i
   show (Bool b)          = show b
   show (Maybe m)         = show m
   show (Char c)          = show c
+  show (Ratio n d)       = show n ++ " / " ++ show d
   show (Tuple t)         = "(" ++ intercalate ", " (map show t) ++ ")"
   show (Constructor n f) = "(" ++ n ++ " " ++ intercalate " " (map show f) ++ ")"
   show (List l) | all isChar l = show $ map ofChar l
@@ -53,7 +57,7 @@ names = nub <$> map ((\a -> if a == [] then error "baz" else head a) . fst)
 focus :: Name -> Objects -> Objects
 focus name list =
   map (first tail) $
-  filter (\(path, _) -> (\a -> if a == [] then error ("quux on " ++ name ++ " AND " ++ (show list)) else head a) path == name)
+  filter (\(path, _) -> if path == [] then False else head path == name)
   list
 
 isList :: Objects -> Bool
@@ -84,6 +88,12 @@ tupleRepr attributes =
   Tuple $ tupleSegments len attributes
   where len = length $ names attributes
 
+isRatio :: Objects -> Bool
+isRatio = (&&) <$> (not . null . focus "Numerator") <*> (not . null . focus "Denominator")
+
+ratioRepr :: Objects -> Entity
+ratioRepr = Ratio <$> (focusedRepr . focus "Numerator") <*> (focusedRepr . focus "Denominator")
+
 repr :: Name -> Objects -> Entity
 repr name objects = focusedRepr $ focus name objects
 
@@ -97,15 +107,16 @@ constructorRepr objects =
     [constructor] -> Constructor constructor $ constructorFields objects
     _ -> error "Could not find constructor name"
   
-focusedRepr :: Objects ->  Entity
-focusedRepr [] = error "Empty object map"
-focusedRepr [(["IntVal"], str)] = Int $ parseInt str
+focusedRepr :: Objects -> Entity
+focusedRepr []                   = Unknown
+focusedRepr [(["IntVal"], str)]  = Int $ parseInt str
 focusedRepr [(["BoolVal"], str)] = Bool $ parseBool str
 focusedRepr [(["CharVal"], str)] = Char $ parseChar str
-focusedRepr attributes | isList attributes = listRepr attributes
-                       | isTuple attributes = tupleRepr attributes
+focusedRepr attributes | isList attributes        = listRepr attributes
+                       | isTuple attributes       = tupleRepr attributes
                        | isConstructor attributes = constructorRepr attributes
-                       | otherwise = error $ printf "Could not determine the representation for %s" (show attributes)
+                       | isRatio attributes       = ratioRepr attributes
+                       | otherwise                = Unknown
 
 fromRawLines :: [String] -> Objects
 fromRawLines = map fromRawLine <$> chunksOf packet <$> drop header
