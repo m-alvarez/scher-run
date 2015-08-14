@@ -137,7 +137,7 @@ runKlee flags filename = do
 
 runKTestTool :: FilePath -> IO (Maybe [String])
 runKTestTool filename = do
-  (exitCode, out, err) <- readProcessWithExitCode "ktest-tool" [filename] ""
+  (exitCode, out, err) <- readProcessWithExitCode "ktest-tool" [filename, "--write-ints"] ""
   case exitCode of
     ExitFailure errno -> do
       reportKTestToolFailure errno filename out err

@@ -41,9 +41,12 @@ type Path = [Name]
 type Name = String
 
 parseInt :: String -> Int
+parseInt = read
+{-
 parseInt ('\\':str) = 
   sum $ zipWith (*) (map (read . ("0"++)) $ splitOn "\\" str) (map (256 ^ ) [0 ..])
 parseInt _ = error "Incorrect format for integer"
+-}
 
 parseChar :: String -> Char
 parseChar = chr <$> parseInt
@@ -103,8 +106,8 @@ constructorFields objects =
 
 constructorRepr :: Objects -> Entity
 constructorRepr objects =
-  case names $ focus "Constructor" objects of
-    [constructor] -> Constructor constructor $ constructorFields objects
+  case focus "Constructor" objects of
+    [([constructorList], index)] -> Constructor (read constructorList !! (parseInt index - 1)) $ constructorFields objects
     _ -> error "Could not find constructor name"
   
 focusedRepr :: Objects -> Entity
@@ -126,6 +129,6 @@ fromRawLines = map fromRawLine <$> chunksOf packet <$> drop header
 fromRawLine :: [String] -> (Path, String)
 fromRawLine [name, _, content] = (path, element)
   where path = splitOn "%" $ quoted name
-        element = quoted content
+        element = drop (length "object    0: data: ") content
         quoted = takeWhile (/= '\'') <$> tail <$> dropWhile (/= '\'')
 fromRawLine _ = error "Fatal error: wrong invocation of internal fromRawLine"

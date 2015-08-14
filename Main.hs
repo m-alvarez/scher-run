@@ -136,7 +136,6 @@ verify opts tests = forM_ tests $ \test -> do
     Just file -> writeBenchmarks file hsCompileTime cCompileTime kleeTime
     Nothing -> return ()
 
-
 parseFlags :: [String] -> ([String], ([String], [(String, String)]))
 parseFlags [] = ([], ([], []))
 parseFlags ((flag@('-':_)):(value@(c:_)):rest)
@@ -181,6 +180,7 @@ printHelp = do
   printf "\t\t\t-strategy (eager|lazy)\n"
   printf "\t\t\t-emit-all-errors\n"
   printf "\t\t\t-max-time TIME\n"
+  printf "\t\t\t-ignore-cache\n"
   printf "\tpp [FILE]...\n"
   printf "\thelp\n"
 

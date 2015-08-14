@@ -49,11 +49,11 @@ compilerFlagsToHaskell input output flags = snd $ runWriter $ do
   whenJust (entryPoint flags) $ \main -> 
     tell ["--main=" ++ fileToModuleName input ++ "." ++ main]
 
+  when (ignoreCache flags) $ tell ["--ignore-cache"]
+
   whenJust (hsPreprocessor flags) $ \ppFlags -> do
     tell ["-fcpp"]
     tell $ preprocessorFlags ppFlags
-
-  when (ignoreCache flags) $ tell ["--ignore-cache"]
 
   tell $ extraHaskellFlags flags
 
