@@ -17,6 +17,7 @@ data Entity = Int Int
             | Tuple [Entity]
             | List [Entity]
             | Constructor String [Entity]
+            | Named String Entity
             | Unknown
 
 instance Show Entity where
@@ -28,6 +29,7 @@ instance Show Entity where
   show (Ratio n d)       = show n ++ " / " ++ show d
   show (Tuple t)         = "(" ++ intercalate ", " (map show t) ++ ")"
   show (Constructor n f) = "(" ++ n ++ " " ++ intercalate " " (map show f) ++ ")"
+  show (Named n v)       = (show n) ++ " = " ++ (show v)
   show (List l) | all isChar l = show $ map ofChar l
                 | otherwise    = "[" ++ intercalate ", " (map show l) ++ "]"
             where isChar (Char _) = True
@@ -101,13 +103,24 @@ repr :: Name -> Objects -> Entity
 repr name objects = focusedRepr $ focus name objects
 
 constructorFields :: Objects -> [Entity]
-constructorFields objects =
-  focusedRepr <$> flip focus objects <$> filter (isDigit . (\a -> if a == [] then error "foobar" else head a)) (names objects)
+constructorFields objects = do
+  name <- names objects
+  if name == "Constructor"
+    then []
+    else do
+      let value = focusedRepr $ focus name objects
+      if isDigit $ head name
+        then return value 
+        else return $ Named name value
+  --focusedRepr <$> flip focus objects <$> filter (isDigit . head) (names objects)
 
 constructorRepr :: Objects -> Entity
 constructorRepr objects =
   case focus "Constructor" objects of
-    [([constructorList], index)] -> Constructor (read constructorList !! (parseInt index - 1)) $ constructorFields objects
+    [([constructorList, "IntVal"], index)] -> 
+      let constructors = read constructorList
+          i            = if length constructors == 1 then 0 else parseInt index - 1
+      in Constructor (constructors !! i) $ constructorFields objects
     _ -> error "Could not find constructor name"
   
 focusedRepr :: Objects -> Entity
