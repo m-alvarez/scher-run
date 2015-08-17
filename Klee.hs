@@ -18,6 +18,7 @@ data KleeFlags = KleeFlags
                , posixRuntime    :: Bool
                , outputDirectory :: Maybe FilePath
                , maxTime         :: Maybe Int
+               , optimize        :: Bool
                }
 
 data KleeReport = KleeReport
@@ -73,9 +74,10 @@ toFlags :: FilePath -> KleeFlags -> [String]
 toFlags input flags = snd $ runWriter $ do
   whenJust (libc flags)            $ \c -> tell ["-libc=" ++ c]
   whenJust (outputDirectory flags) $ \d -> tell ["-output-dir=" ++ d]
-  when (posixRuntime flags)        $ tell ["--posix-runtime"]
-  when (emitAllErrors flags)       $ tell ["-emit-all-errors"]
+  when (posixRuntime flags)        $       tell ["--posix-runtime"]
+  when (emitAllErrors flags)       $       tell ["-emit-all-errors"]
   whenJust (maxTime flags)         $ \i -> tell ["-max-time=" ++ show i]
+  when (optimize flags)            $       tell ["--optimize"]
   tell [input]
 
 reportKleeFailure :: Int -> String -> String -> String -> IO ()
