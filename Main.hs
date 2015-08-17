@@ -142,6 +142,7 @@ parseFlags [] = ([], ([], []))
 parseFlags ((flag@('-':_)):(value@(c:_)):rest)
   | c /= '-'  = id *** id *** ((flag, value):) $ parseFlags rest
   | otherwise = id *** (flag:) *** id $ parseFlags rest
+parseFlags [(flag@('-':_))] = ([], ([flag], []))
 parseFlags (value:rest) = 
   (value:) *** id *** id $ parseFlags rest
   
