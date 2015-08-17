@@ -50,6 +50,7 @@ defaultCompilerFlags =
      , hsPreprocessor = Nothing
      , includes       = ["tdir/cbits", "tdir", "/home/user/klee/include"]
      , ignoreCache    = False
+     , debug          = False
      , extraCFlags = [ "-std=gnu99"
                      , "-falign-functions=4"
                      , "-ffast-math"
@@ -141,7 +142,7 @@ parseFlags :: [String] -> ([String], ([String], [(String, String)]))
 parseFlags [] = ([], ([], []))
 parseFlags ((flag@('-':_)):(value@(c:_)):rest)
   | c /= '-'  = id *** id *** ((flag, value):) $ parseFlags rest
-  | otherwise = id *** (flag:) *** id $ parseFlags rest
+  | otherwise = id *** (flag:) *** id $ parseFlags (value:rest)
 parseFlags [(flag@('-':_))] = ([], ([flag], []))
 parseFlags (value:rest) = 
   (value:) *** id *** id $ parseFlags rest
@@ -163,6 +164,9 @@ parseArgs ("verify":rest)  = Verify options functions
 
           when ("-emit-all-errors" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { emitAllErrors = True } }
+
+          when ("-debug" `elem` flags) $ do
+            modify $ \o -> o { compilerFlags = (compilerFlags o) { debug = True } }
 
           when ("-optimize" `elem` flags) $ do
             modify $ \o -> o { kleeFlags = (kleeFlags o) { optimize = True } }

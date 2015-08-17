@@ -18,6 +18,7 @@ data CompilerFlags = CF
                    , includes          :: [String]
                    , hsCompiler        :: String
                    , ignoreCache       :: Bool
+                   , debug             :: Bool
                    , extraHaskellFlags :: [String]
                    , toC               :: Bool
                    , cPreprocessor     :: [(PreprocessorFlag, Maybe String)]
@@ -81,6 +82,8 @@ compilerFlagsToC inputs output flags = snd $ runWriter $ do
   tell $ includeDirectives $ includes flags
 
   tell $ extraCFlags flags
+
+  when (debug flags) $ tell ["-g"]
 
   tell $ preprocessorFlags $ cPreprocessor flags
 
